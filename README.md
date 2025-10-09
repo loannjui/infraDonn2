@@ -1,4 +1,4 @@
-# infraDonn2
+# infraDonn2 - Loann Juillerat
 
 This template should help get you started developing with Vue 3 in Vite.
 
