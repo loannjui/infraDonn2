@@ -1,27 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import PouchDB from 'pouchdb'
 
 const counter = ref(0)
-let interval: number | null = null
-function startCounter() {
-  if (interval) return
 
-  interval = setInterval(() => {
-    counter.value++
-    if (counter.value >= 9999) {
-      clearInterval(interval!)
-      interval = null
-    }
-  }, 1000)
-}
-const increment = () => {
-  counter.value++
+const storage = ref()
+// const postData = ref([])
+
+onMounted(() => {
+  console.log('=> Composant initialisé')
+  initDatabase()
+})
+
+const initDatabase = () => {
+  console.log('=> Connexion à la base de données.')
+  const db = new PouchDB('http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infra_53_0850')
+  if (db) {
+    console.log('Connected to collection : ' + db?.name)
+    storage.value = db
+  } else {
+    console.warn('Something went wrong')
+  }
 }
 </script>
 
 <template>
   <h1>Cookie Clicker!</h1>
-  <p>{{ counter }}</p>
-  <button @click="increment">Add number</button>
-  <button @click="startCounter">Start auto-increment</button>
 </template>
