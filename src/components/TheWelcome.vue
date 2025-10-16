@@ -2,8 +2,6 @@
 import { onMounted, ref } from 'vue'
 import PouchDB from 'pouchdb'
 
-const counter = ref(0)
-
 const storage = ref()
 // const postData = ref([])
 
