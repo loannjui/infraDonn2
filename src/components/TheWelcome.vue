@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import PouchDB from 'pouchdb'
 
 declare interface Post {
+  _id: string
+  _rev: string
   post_name: string
   post_content: string
   attributes: {
@@ -32,6 +34,7 @@ const fetchData = () => {
   // https://pouchdb.com/api.html#batch_fetch
   // Regarder l'exemple avec function allDocs
   // Remplir le tableau postsData avec les données récupérées
+
   storage.value
     .allDocs({
       include_docs: true,
@@ -69,11 +72,75 @@ const addDoc = (title: any, content: any) => {
       console.log(err)
     })
 }
-</script>
 
+const updateDoc = (id: any, rev: any, updatePostTitle: any, updatePostContent: any) => {
+  storage.value
+    .put({
+      _id: id,
+      _rev: rev,
+      post_name: updatePostTitle,
+      post_content: updatePostContent,
+    })
+    .then(function (response: any) {
+      console.log(response)
+      fetchData()
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
+
+const removeDoc = (post: any) => {
+  storage.value
+    .remove({
+      _id: post._id,
+      _rev: post._rev,
+      post_name: post.post_name,
+      post_content: post.post_content,
+    })
+    .then(function (response: any) {
+      console.log(response)
+      fetchData()
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
+</script>
 <template>
   <h1>Fetch Data</h1>
-  <form id="addDoc" name="addDoc">
+  <article v-for="post in postsData" v-bind:key="(post as any).id">
+    <h2>{{ post.post_name }}</h2>
+    <p>{{ post.post_content }}</p>
+    <form
+      id="updateDoc"
+      name="updateDoc"
+      @submit.prevent="updateDoc(post._id, post._rev, post.post_name, post.post_content)"
+    >
+      <input
+        type="text"
+        id="updatePostTitle"
+        v-model="post.post_name"
+        name="updatePostTitle"
+        :placeholder="post.post_name"
+        required
+        minlength="1"
+      />
+      <input
+        type="text"
+        id="updatePostContent"
+        v-model="post.post_content"
+        name="updatePostContent"
+        :placeholder="post.post_content"
+        required
+        minlength="1"
+      />
+      <button type="submit">Update</button>
+    </form>
+    <button @click="removeDoc(post)" value="Delete">Delete</button>
+  </article>
+  <br /><br />
+  <form id="addDoc" name="addDoc" @submit.prevent="addDoc(postTitle, postContent)">
     <label for="sendId">Add New Doc</label><br />
     <input
       type="text"
@@ -82,6 +149,7 @@ const addDoc = (title: any, content: any) => {
       name="postTitle"
       placeholder="Titre du post"
       required
+      minlength="1"
     /><br />
     <input
       type="text"
@@ -90,11 +158,8 @@ const addDoc = (title: any, content: any) => {
       name="postContent"
       placeholder="Contenu du post"
       required
+      minlength="1"
     /><br /><br />
-    <input @click="addDoc(postTitle, postContent)" value="Envoyer" />
+    <button type="submit">Envoyer</button>
   </form>
-  <article v-for="post in postsData" v-bind:key="(post as any).id">
-    <h2>{{ post.post_name }}</h2>
-    <p>{{ post.post_content }}</p>
-  </article>
 </template>
