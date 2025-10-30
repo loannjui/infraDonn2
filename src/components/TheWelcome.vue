@@ -159,8 +159,8 @@ const removeDoc = (post: any) => {
       placeholder="Contenu du post"
       required
       minlength="1"
-    /><br /><br />
-    <button type="submit">Envoyer</button>
+    /><br />
+    <button type="submit">Create</button>
   </form>
 </template>
 <style scoped>
