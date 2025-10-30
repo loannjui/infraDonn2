@@ -163,3 +163,30 @@ const removeDoc = (post: any) => {
     <button type="submit">Envoyer</button>
   </form>
 </template>
+<style scoped>
+input {
+  font-size: 1rem;
+  font-weight: 600;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  background-color: white;
+  border: none;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 10);
+  color: black;
+  padding: 0.5rem;
+  border-radius: 1rem;
+  margin-right: 1rem;
+  margin-bottom: 1rem;
+}
+</style>
