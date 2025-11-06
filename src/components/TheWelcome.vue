@@ -19,10 +19,16 @@ const postsData = ref<Post[]>([])
 
 const initDatabase = () => {
   console.log('=> Connexion à la base de données.')
-  const db = new PouchDB('http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2')
-  if (db) {
-    console.log('Connected to collection : ' + db?.name)
-    storage.value = db
+  const dbLocal = new PouchDB('local_collection')
+  // const dbLocal = new Pouchdb('http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2')
+  if (dbLocal) {
+    console.log('Connected to collection : ' + dbLocal.name)
+    storage.value = dbLocal
+    dbLocal.replicate
+      .from('http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2')
+      .then((_result) => {
+        fetchData()
+      })
   } else {
     console.warn('Something went wrong')
   }
@@ -30,11 +36,6 @@ const initDatabase = () => {
 
 // Récupération des données
 const fetchData = () => {
-  // TODO Récupération des données
-  // https://pouchdb.com/api.html#batch_fetch
-  // Regarder l'exemple avec function allDocs
-  // Remplir le tableau postsData avec les données récupérées
-
   storage.value
     .allDocs({
       include_docs: true,
@@ -52,7 +53,6 @@ const fetchData = () => {
 onMounted(() => {
   console.log('=> Composant initialisé')
   initDatabase()
-  fetchData()
 })
 
 const postTitle = ref('')
@@ -106,9 +106,22 @@ const removeDoc = (post: any) => {
       console.log(err)
     })
 }
+
+const syncData = () => {
+  storage.value.replicate
+    .to('http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2')
+    .then(function (result: any) {
+      console.log(result)
+      fetchData()
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
 </script>
 <template>
   <h1>Fetch Data</h1>
+  <button @click="syncData()">Sync Database</button>
   <article v-for="post in postsData" v-bind:key="(post as any).id">
     <h2>{{ post.post_name }}</h2>
     <p>{{ post.post_content }}</p>
