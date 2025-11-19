@@ -58,7 +58,7 @@ const onError = () => {
   console.error('Erreur')
 }
 /*
-// FACTORY
+// FACTORY donné par IA
 const generateRandomPosts = async (count: number) => {
   const posts = []
 
