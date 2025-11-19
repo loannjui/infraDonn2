@@ -8,6 +8,7 @@ PouchDB.plugin(PouchDBFind)
 declare interface Post {
   _id: string
   _rev: string
+  _conflicts?: string[]
   post_name: string
   post_content: string
   attributes: {
@@ -91,18 +92,17 @@ const generateRandomPosts = async (count: number) => {
 // Récupération des données
 const fetchData = () => {
   storage.value
-    .allDocs({
-      include_docs: true,
-      attachments: true,
+    .find({
+      selector: {
+        'attributes.post_category': `${indexCategory.value}`,
+      },
+      conflicts: true,
     })
     .then((result: any) => {
-      postsData.value = result.rows
-        .map((row: any) => row.doc)
-        // Je ne garde que les posts tag jeux vidéo
-        .filter((doc: any) => doc?.attributes?.post_category === 'videogames')
+      postsData.value = result.docs
     })
     .catch((error: any) => {
-      console.error('=> Erreur lors de la récupération des données :', error)
+      console.error('Erreur lors de la récupération des données :', error)
     })
 }
 
@@ -141,6 +141,7 @@ const stopSync = () => {
 const postTitle = ref('')
 const postContent = ref('')
 const postCategory = ref('videogames')
+const indexCategory = ref('videogames')
 
 const addDoc = (title: any, content: any, category: any) => {
   storage.value
@@ -211,8 +212,14 @@ const removeDoc = (post: any) => {
 </script>
 <template>
   <h1>Fetch Data</h1>
+  <label>Changer catégorie </label>
+  <select v-model="indexCategory" @change="fetchData()">
+    <option value="videogames">Jeux vidéo</option>
+    <option value="reading">Lire</option>
+    <option value="cooking">Cuisiner</option>
+  </select>
   <div class="flex">
-    <p>Offline</p>
+    <p>Online :</p>
     <label class="switch">
       <input @click="logInLogOut()" type="checkbox" checked />
       <span class="slider round"></span>
@@ -264,6 +271,11 @@ const removeDoc = (post: any) => {
         <option value="reading">Lire</option>
         <option value="cooking">Cuisiner</option>
       </select>
+      <!--  <p style="color: red" v-if="post._conflicts && post._conflicts.length">
+        Conflits détectés :
+        <span v-for="conflict in post._conflicts" :key="conflict">{{ conflict }}</span>
+      </p>
+-->
       <button type="submit">Update</button>
     </form>
     <button @click="removeDoc(post)" value="Delete">Delete</button>
