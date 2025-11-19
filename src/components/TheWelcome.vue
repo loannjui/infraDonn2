@@ -85,12 +85,17 @@ const fetchData = () => {
   storage.value
     .find({
       selector: {
-        'attributes.post_category': `${indexCategory.value}`,
+        'attributes.post_category': indexCategory.value,
       },
-      conflicts: true,
     })
+    // L'ia m'a aidé pour ça sinon je ne comprenais pas comment avoir les index et les conflits
     .then((result: any) => {
-      postsData.value = result.docs
+      return Promise.all(
+        result.docs.map((post: any) => storage.value.get(post._id, { conflicts: true })),
+      )
+    })
+    .then((allPosts: any) => {
+      postsData.value = allPosts
     })
     .catch((error: any) => {
       console.error('Erreur lors de la récupération des données :', error)
@@ -274,14 +279,10 @@ const removeDoc = (post: any) => {
         <option value="reading">Lire</option>
         <option value="cooking">Cuisiner</option>
       </select>
-      <!--  <p style="color: red" v-if="post._conflicts && post._conflicts.length">
-        Conflits détectés :
-        <span v-for="conflict in post._conflicts" :key="conflict">{{ conflict }}</span>
-      </p>
--->
       <button type="submit">Update</button>
+      <button @click="removeDoc(post)" value="Delete">Delete</button>
+      <span class="conflicts" v-if="post._conflicts">Conflits détectés</span>
     </form>
-    <button @click="removeDoc(post)" value="Delete">Delete</button>
   </article>
   <br /><br />
   <form id="addDoc" name="addDoc" @submit.prevent="addDoc(postTitle, postContent, postCategory)">
@@ -313,6 +314,9 @@ const removeDoc = (post: any) => {
   </form>
 </template>
 <style scoped>
+.conflicts {
+  color: #ff0000;
+}
 .flex {
   display: flex;
   width: 100%;
