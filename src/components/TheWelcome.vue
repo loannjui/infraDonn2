@@ -38,17 +38,7 @@ const initDatabase = () => {
   console.log('=> Connecté à la collection : ' + dbLocal.name)
   if (dbLocal) {
     storage.value = dbLocal
-    dbLocal
-      .createIndex({
-        index: { fields: ['attributes.post_category'] },
-      })
-      .then(function (_result: any) {
-        console.log('Index créés')
-      })
-      .catch((error: any) => {
-        console.error("Erreur dans la création de l'index", error)
-      })
-
+    initIndex(dbLocal)
     dbLocal.replicate
       .from(url)
       .on('complete', syncData)
@@ -68,6 +58,7 @@ const onError = () => {
   console.error('Erreur')
 }
 /*
+// FACTORY
 const generateRandomPosts = async (count: number) => {
   const posts = []
 
@@ -103,6 +94,18 @@ const fetchData = () => {
     })
     .catch((error: any) => {
       console.error('Erreur lors de la récupération des données :', error)
+    })
+}
+
+const initIndex = (db: any) => {
+  db.createIndex({
+    index: { fields: ['attributes.post_category'] },
+  })
+    .then(function (_result: any) {
+      console.log('Index créés')
+    })
+    .catch((error: any) => {
+      console.error("Erreur dans la création de l'index", error)
     })
 }
 
