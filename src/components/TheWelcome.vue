@@ -5,16 +5,27 @@ import PouchDBFind from 'pouchdb-find'
 
 PouchDB.plugin(PouchDBFind)
 
+interface Comment {
+  _id: string
+  _rev?: string
+  _conflicts?: string[]
+  post_id: string
+  comment_content: string
+}
+
 declare interface Post {
   _id: string
   _rev: string
   _conflicts?: string[]
   post_name: string
   post_content: string
+  post_likes: number
+  post_comments: string[]
   attributes: {
     post_category: string
     creation_date: any
   }
+  comments?: Comment[]
 }
 
 const url = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2'
@@ -29,7 +40,7 @@ const syncManager = ref<any>(null)
 onMounted(() => {
   console.log('=> Composant initialisé')
   initDatabase()
-  // generateRandomPosts(20)
+  // generateRandomPosts(12)
 })
 
 const initDatabase = () => {
@@ -67,6 +78,7 @@ const generateRandomPosts = async (count: number) => {
       _id: `${Date.now()}_${i}`,
       post_name: `${Math.random().toString(36).substring(2)}`,
       post_content: `${Math.random().toString(36).substring(2)}`,
+      post_likes: `${Math.round(Math.random() * 10)}`,
       attributes: {
         post_category: ['videogames', 'reading', 'cooking'][Math.floor(Math.random() * 3)],
         creation_date: new Date(),
@@ -86,9 +98,16 @@ const fetchData = () => {
     .find({
       selector: {
         'attributes.post_category': indexCategory.value,
+        post_likes: { $gte: 0 },
       },
+      sort: [{ 'attributes.post_category': 'asc' }, { post_likes: 'desc' }],
+      limit: 5,
     })
-    // L'ia m'a aidé pour ça sinon je ne comprenais pas comment avoir les index et les conflits
+    .then((result: any) => {
+      postsData.value = result.docs
+      result.docs.forEach((post: Post) => fetchComments(post._id))
+    })
+    /*
     .then((result: any) => {
       return Promise.all(
         result.docs.map((post: any) => storage.value.get(post._id, { conflicts: true })),
@@ -97,14 +116,28 @@ const fetchData = () => {
     .then((allPosts: any) => {
       postsData.value = allPosts
     })
+      */
     .catch((error: any) => {
-      console.error('Erreur lors de la récupération des données :', error)
+      console.error('Erreur lors de la récupération des posts :', error)
+    })
+}
+
+const fetchComments = (postId: any) => {
+  storage.value
+    .find({
+      selector: {
+        post_id: postId,
+      },
+    })
+    .then((result: any) => {
+      const post = postsData.value.find((p) => p._id === postId)
+      if (post) post.comments = result.docs
     })
 }
 
 const initIndex = (db: any) => {
   db.createIndex({
-    index: { fields: ['attributes.post_category'] },
+    index: { fields: ['attributes.post_category', 'post_likes'] },
   })
     .then(function (_result: any) {
       console.log('Index créés')
@@ -170,21 +203,16 @@ const addDoc = (title: any, content: any, category: any) => {
     })
 }
 
-const updateDoc = (
-  id: any,
-  rev: any,
-  updatePostTitle: any,
-  updatePostContent: any,
-  updatePostCategory: any,
-) => {
+const updateDoc = (post: Post) => {
   storage.value
     .put({
-      _id: id,
-      _rev: rev,
-      post_name: updatePostTitle,
-      post_content: updatePostContent,
+      _id: post._id,
+      _rev: post._rev,
+      post_name: post.post_name,
+      post_content: post.post_content,
+      post_likes: post.post_likes,
       attributes: {
-        post_category: updatePostCategory,
+        post_category: post.attributes.post_category,
         creation_date: new Date(),
       },
     })
@@ -197,13 +225,14 @@ const updateDoc = (
     })
 }
 
-const removeDoc = (post: any) => {
+const removeDoc = (post: Post) => {
   storage.value
     .remove({
       _id: post._id,
       _rev: post._rev,
       post_name: post.post_name,
       post_content: post.post_content,
+      post_likes: post.post_likes,
       attributes: {
         post_category: post.attributes.post_category,
         creation_date: post.attributes.creation_date,
@@ -217,6 +246,13 @@ const removeDoc = (post: any) => {
       console.log(err)
     })
 }
+
+const addLike = (post: Post) => {
+  post.post_likes++
+  updateDoc(post)
+}
+
+const addComment = () => {}
 </script>
 <template>
   <h1>Fetch Data</h1>
@@ -236,19 +272,7 @@ const removeDoc = (post: any) => {
     <!--  <button @click="syncData()">Sync Database</button>-->
   </div>
   <article v-for="post in postsData" v-bind:key="(post as any).id">
-    <form
-      id="updateDoc"
-      name="updateDoc"
-      @submit.prevent="
-        updateDoc(
-          post._id,
-          post._rev,
-          post.post_name,
-          post.post_content,
-          post.attributes.post_category,
-        )
-      "
-    >
+    <form id="updateDoc" name="updateDoc" @submit.prevent="updateDoc(post)">
       <input
         class="message"
         type="text"
@@ -269,6 +293,8 @@ const removeDoc = (post: any) => {
         required
         minlength="1"
       />
+      <span style="color: #fff">{{ post.post_likes }} ❤️</span>
+      <button @click="addLike(post)" type="button">Add like</button>
       <select
         id="postCategory"
         v-model="post.attributes.post_category"
@@ -280,7 +306,11 @@ const removeDoc = (post: any) => {
         <option value="cooking">Cuisiner</option>
       </select>
       <button type="submit">Update</button>
-      <button @click="removeDoc(post)" value="Delete">Delete</button>
+      <button @click="removeDoc(post)">Delete</button>
+      <span v-for="comment in post.comments" :key="comment._id">
+        {{ comment.comment_content }}
+      </span>
+      <button @click="addComment()">Add comment</button>
       <span class="conflicts" v-if="post._conflicts">Conflits détectés</span>
     </form>
   </article>
@@ -355,7 +385,7 @@ input.message {
   color: white;
 }
 */
-/* The switch - the box around the slider */
+
 .switch {
   position: relative;
   display: inline-block;
@@ -363,14 +393,12 @@ input.message {
   height: 34px;
 }
 
-/* Hide default HTML checkbox */
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
-/* The slider */
 .slider {
   position: absolute;
   cursor: pointer;
