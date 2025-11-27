@@ -2,6 +2,9 @@
 import { onMounted, ref } from 'vue'
 import PouchDB from 'pouchdb'
 import PouchDBFind from 'pouchdb-find'
+import '../assets/main.css'
+import '../assets/base.css'
+import '../assets/custom.css'
 
 PouchDB.plugin(PouchDBFind)
 
@@ -28,11 +31,14 @@ declare interface Post {
   comments?: Comment[]
 }
 
-const url = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2'
+const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2'
+const urlComments = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2-comments'
 const opts = { live: true, retry: true }
 
 // Référence à la base de données
-const storage = ref()
+const postsDB = ref()
+const commentsDB = ref<any>(null)
+
 // Données stockées
 const postsData = ref<Post[]>([])
 const syncManager = ref<any>(null)
@@ -46,16 +52,19 @@ onMounted(() => {
 const initDatabase = () => {
   console.log('=> Connexion à la base de données.')
   const dbLocal = new PouchDB('local_collection')
+  const dbComments = new PouchDB('local_comments')
   console.log('=> Connecté à la collection : ' + dbLocal.name)
   if (dbLocal) {
-    storage.value = dbLocal
+    postsDB.value = dbLocal
+    commentsDB.value = dbComments
     initIndex(dbLocal)
     dbLocal.replicate
-      .from(url)
+      .from(urlPosts)
       .on('complete', syncData)
       .then((_result) => {
         fetchData()
       })
+    dbComments.sync(urlComments, opts)
   } else {
     console.error('Something went wrong.', Error)
   }
@@ -85,8 +94,8 @@ const generateRandomPosts = async (count: number) => {
       },
     })
   }
-  if (storage.value) {
-    await storage.value.bulkDocs(posts)
+  if (postsDB.value) {
+    await postsDB.value.bulkDocs(posts)
     console.log(`${count} documents générés`)
     fetchData()
   }
@@ -94,40 +103,29 @@ const generateRandomPosts = async (count: number) => {
 */
 // Récupération des données
 const fetchData = () => {
-  storage.value
+  postsDB.value
     .find({
       selector: {
         'attributes.post_category': indexCategory.value,
         post_likes: { $gte: 0 },
       },
-      sort: [{ 'attributes.post_category': 'asc' }, { post_likes: 'desc' }],
-      limit: 5,
+      sort: [{ post_likes: 'desc' }],
+      limit: 10,
     })
     .then((result: any) => {
       postsData.value = result.docs
+      console.log(result)
       result.docs.forEach((post: Post) => fetchComments(post._id))
     })
-    /*
-    .then((result: any) => {
-      return Promise.all(
-        result.docs.map((post: any) => storage.value.get(post._id, { conflicts: true })),
-      )
-    })
-    .then((allPosts: any) => {
-      postsData.value = allPosts
-    })
-      */
     .catch((error: any) => {
       console.error('Erreur lors de la récupération des posts :', error)
     })
 }
 
 const fetchComments = (postId: any) => {
-  storage.value
+  commentsDB.value
     .find({
-      selector: {
-        post_id: postId,
-      },
+      selector: { post_id: postId },
     })
     .then((result: any) => {
       const post = postsData.value.find((p) => p._id === postId)
@@ -136,14 +134,26 @@ const fetchComments = (postId: any) => {
 }
 
 const initIndex = (db: any) => {
+  // Tri par catégorie
   db.createIndex({
-    index: { fields: ['attributes.post_category', 'post_likes'] },
+    index: { fields: ['attributes.post_category'] },
   })
     .then(function (_result: any) {
-      console.log('Index créés')
+      console.log('Index catégories créé')
     })
     .catch((error: any) => {
       console.error("Erreur dans la création de l'index", error)
+    })
+
+  // Tri par Likes
+  db.createIndex({
+    index: { fields: ['post_likes'] },
+  })
+    .then((_result: any) => {
+      console.log('Index pour post_likes créé')
+    })
+    .catch((error: any) => {
+      console.error("Erreur dans la création de l'index post_likes", error)
     })
 }
 
@@ -160,8 +170,8 @@ const syncData = () => {
     console.log('Synchro déjà établie.')
     return
   } else {
-    syncManager.value = storage.value
-      .sync(url, opts)
+    syncManager.value = postsDB.value
+      .sync(urlPosts, opts)
       .on('change', fetchData)
       .on('paused', onPaused)
       .on('error', onError)
@@ -184,8 +194,10 @@ const postContent = ref('')
 const postCategory = ref('videogames')
 const indexCategory = ref('videogames')
 
+const commentContent = ref([])
+
 const addDoc = (title: any, content: any, category: any) => {
-  storage.value
+  postsDB.value
     .post({
       post_name: title,
       post_content: content,
@@ -204,7 +216,7 @@ const addDoc = (title: any, content: any, category: any) => {
 }
 
 const updateDoc = (post: Post) => {
-  storage.value
+  postsDB.value
     .put({
       _id: post._id,
       _rev: post._rev,
@@ -226,7 +238,7 @@ const updateDoc = (post: Post) => {
 }
 
 const removeDoc = (post: Post) => {
-  storage.value
+  postsDB.value
     .remove({
       _id: post._id,
       _rev: post._rev,
@@ -252,7 +264,20 @@ const addLike = (post: Post) => {
   updateDoc(post)
 }
 
-const addComment = () => {}
+const addComment = (postId: any, postContent: any) => {
+  commentsDB.value
+    .post({
+      post_id: postId,
+      comment_content: postContent,
+    })
+    .then(function (response: any) {
+      console.log(response)
+      fetchData()
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
 </script>
 <template>
   <h1>Fetch Data</h1>
@@ -262,59 +287,71 @@ const addComment = () => {}
     <option value="reading">Lire</option>
     <option value="cooking">Cuisiner</option>
   </select>
-  <div class="flex">
-    <p>Online :</p>
-    <label class="switch">
-      <input @click="logInLogOut()" type="checkbox" checked />
-      <span class="slider round"></span>
-    </label>
 
-    <!--  <button @click="syncData()">Sync Database</button>-->
+  <p>Online :</p>
+  <label class="switch">
+    <input @click="logInLogOut()" type="checkbox" checked />
+    <span class="slider round"></span>
+  </label>
+
+  <!--  <button @click="syncData()">Sync Database</button>-->
+  <div class="flex">
+    <article v-for="(post, index) in postsData" v-bind:key="(post as any).id">
+      <form name="updateDoc" @submit.prevent="updateDoc(post)">
+        <input
+          class="message"
+          type="text"
+          id="updatePostTitle"
+          v-model="post.post_name"
+          name="updatePostTitle"
+          :placeholder="post.post_name"
+          required
+          minlength="1"
+        />
+        <input
+          class="message"
+          type="text"
+          id="updatePostContent"
+          v-model="post.post_content"
+          name="updatePostContent"
+          :placeholder="post.post_content"
+          required
+          minlength="1"
+        />
+        <span style="color: #fff">{{ post.post_likes }} ❤️</span>
+        <button @click="addLike(post)" type="button">Add like</button>
+        <select
+          id="postCategory"
+          v-model="post.attributes.post_category"
+          name="postCategory"
+          required
+        >
+          <option value="videogames">Jeux vidéo</option>
+          <option value="reading">Lire</option>
+          <option value="cooking">Cuisiner</option>
+        </select>
+        <button type="submit">Update</button>
+        <button @click="removeDoc(post)">Delete</button>
+        <br />
+        <label><h2>Commentaire(s)</h2></label>
+        <p v-for="comment in post.comments" :key="comment._id">
+          {{ comment.comment_content }}
+        </p>
+        <input
+          class="comment"
+          type="text"
+          v-model="commentContent[index]"
+          name="addComment"
+          placeholder="Votre commentaire"
+          required
+          minlength="1"
+        />
+        <button @click="addComment(post._id, commentContent[index])">Add comment</button>
+
+        <span class="conflicts" v-if="post._conflicts">Conflits détectés</span>
+      </form>
+    </article>
   </div>
-  <article v-for="post in postsData" v-bind:key="(post as any).id">
-    <form id="updateDoc" name="updateDoc" @submit.prevent="updateDoc(post)">
-      <input
-        class="message"
-        type="text"
-        id="updatePostTitle"
-        v-model="post.post_name"
-        name="updatePostTitle"
-        :placeholder="post.post_name"
-        required
-        minlength="1"
-      />
-      <input
-        class="message"
-        type="text"
-        id="updatePostContent"
-        v-model="post.post_content"
-        name="updatePostContent"
-        :placeholder="post.post_content"
-        required
-        minlength="1"
-      />
-      <span style="color: #fff">{{ post.post_likes }} ❤️</span>
-      <button @click="addLike(post)" type="button">Add like</button>
-      <select
-        id="postCategory"
-        v-model="post.attributes.post_category"
-        name="postCategory"
-        required
-      >
-        <option value="videogames">Jeux vidéo</option>
-        <option value="reading">Lire</option>
-        <option value="cooking">Cuisiner</option>
-      </select>
-      <button type="submit">Update</button>
-      <button @click="removeDoc(post)">Delete</button>
-      <span v-for="comment in post.comments" :key="comment._id">
-        {{ comment.comment_content }}
-      </span>
-      <button @click="addComment()">Add comment</button>
-      <span class="conflicts" v-if="post._conflicts">Conflits détectés</span>
-    </form>
-  </article>
-  <br /><br />
   <form id="addDoc" name="addDoc" @submit.prevent="addDoc(postTitle, postContent, postCategory)">
     <label for="sendId">Add New Doc</label><br />
     <input
@@ -343,106 +380,3 @@ const addComment = () => {}
     <button type="submit">Create</button>
   </form>
 </template>
-<style scoped>
-.conflicts {
-  color: #ff0000;
-}
-.flex {
-  display: flex;
-  width: 100%;
-  height: auto;
-}
-input {
-  font-size: 1rem;
-  font-weight: 600;
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
-    'Helvetica Neue',
-    sans-serif;
-  background-color: white;
-  border: none;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 10);
-  color: black;
-  padding: 0.5rem;
-  border-radius: 1rem;
-  margin-right: 1rem;
-  margin-bottom: 1rem;
-}
-/*
-input.message {
-  display: flex;
-  background-color: transparent;
-  box-shadow: none;
-  color: white;
-}
-*/
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  -webkit-transition: 0.4s;
-  transition: 0.4s;
-}
-
-.slider:before {
-  position: absolute;
-  content: '';
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  -webkit-transition: 0.4s;
-  transition: 0.4s;
-}
-
-input:checked + .slider {
-  background-color: #2196f3;
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px #2196f3;
-}
-
-input:checked + .slider:before {
-  -webkit-transform: translateX(26px);
-  -ms-transform: translateX(26px);
-  transform: translateX(26px);
-}
-
-/* Rounded sliders */
-.slider.round {
-  border-radius: 34px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
-}
-</style>
