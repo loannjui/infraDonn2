@@ -23,7 +23,6 @@ declare interface Post {
   post_name: string
   post_content: string
   post_likes: number
-  post_comments: string[]
   attributes: {
     post_category: string
     creation_date: any
