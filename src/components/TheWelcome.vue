@@ -113,7 +113,6 @@ const fetchData = () => {
     })
     .then((result: any) => {
       postsData.value = result.docs
-      console.log(result)
       result.docs.forEach((post: Post) => fetchComments(post._id))
     })
     .catch((error: any) => {
@@ -227,8 +226,7 @@ const updateDoc = (post: Post) => {
         creation_date: new Date(),
       },
     })
-    .then(function (response: any) {
-      console.log(response)
+    .then(function (_response: any) {
       fetchData()
     })
     .catch(function (err: any) {
@@ -278,6 +276,7 @@ const addComment = (postId: any, postContent: any) => {
     })
 }
 </script>
+
 <template>
   <h1>Fetch Data</h1>
   <label>Changer catégorie </label>
@@ -342,7 +341,6 @@ const addComment = (postId: any, postContent: any) => {
           v-model="commentContent[index]"
           name="addComment"
           placeholder="Votre commentaire"
-          required
           minlength="1"
         />
         <button @click="addComment(post._id, commentContent[index])">Add comment</button>
