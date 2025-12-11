@@ -199,6 +199,7 @@ const addDoc = (title: any, content: any, category: any) => {
     .post({
       post_name: title,
       post_content: content,
+      post_likes: 0,
       attributes: {
         post_category: category,
         creation_date: new Date(),
