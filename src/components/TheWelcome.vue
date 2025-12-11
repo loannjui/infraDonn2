@@ -52,13 +52,14 @@ onMounted(() => {
 const initDatabase = () => {
   console.log('=> Connexion à la base de données.')
   const dbLocal = new PouchDB('local_collection')
-  const dbComments = new PouchDB('local_comments')
   console.log('=> Connecté à la collection : ' + dbLocal.name)
+  const dbComments = new PouchDB('local_comments')
+  console.log('=> Connecté à la collection : ' + dbComments.name)
   if (dbLocal) {
     postsDB.value = dbLocal
     commentsDB.value = dbComments
     initIndex(dbLocal)
-
+    // DB POSTS
     dbLocal
       .changes(changeOpts)
       .on('change', (change) => {
@@ -68,7 +69,7 @@ const initDatabase = () => {
       .on('error', (err) => {
         console.error(err)
       })
-
+    // DB COMMENTS
     dbComments
       .changes(changeOpts)
       .on('change', (change) => {
@@ -89,15 +90,6 @@ const initDatabase = () => {
     console.error('Something went wrong.', Error)
   }
 }
-/*
-const onPaused = () => {
-  console.error('Paused')
-}
-
-const onError = () => {
-  console.error('Erreur')
-}
-  */
 /*
 // FACTORY donné par IA
 const generateRandomPosts = async (count: number) => {
@@ -122,7 +114,7 @@ const generateRandomPosts = async (count: number) => {
   }
 }
 */
-// Récupération des données
+// Récupération des posts
 const fetchData = () => {
   postsDB.value
     .find({
@@ -141,7 +133,7 @@ const fetchData = () => {
       console.error('Erreur lors de la récupération des posts :', error)
     })
 }
-
+// Récupération des comments
 const fetchComments = (postId: any) => {
   commentsDB.value
     .find({
@@ -202,8 +194,8 @@ const syncData = () => {
         .on('active', () => {
           console.log('Synchro post active')
         })
-        .on('error', (err: any) => {
-          console.error(err)
+        .on('error', (error: any) => {
+          console.error(error)
         }),
 
       comments: commentsDB.value
@@ -217,8 +209,8 @@ const syncData = () => {
         .on('active', () => {
           console.log('Synchro commentaires active')
         })
-        .on('error', (err: any) => {
-          console.error(err)
+        .on('error', (error: any) => {
+          console.error(error)
         }),
     }
     console.log('Synchro commencée.')
