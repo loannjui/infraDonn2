@@ -57,21 +57,37 @@ const initDatabase = () => {
     postsDB.value = dbLocal
     commentsDB.value = dbComments
     initIndex(dbLocal)
+
     dbLocal
-      .sync(urlPosts, { live: true, retry: true })
-      .on('change', fetchData)
-      .on('paused', onPaused)
-      .on('error', onError)
+      .changes({
+        since: 'now',
+        live: true,
+        include_docs: true,
+      })
+      .on('change', (change) => {
+        console.log(change)
+        fetchData()
+      })
+      .on('error', (err) => {
+        console.error(err)
+      })
+
+    dbLocal.replicate
+      .from(urlPosts)
+      .on('complete', syncData)
+      .then((_result) => {
+        fetchData()
+      })
     dbComments.sync(urlComments, opts)
   } else {
     console.error('Something went wrong.', Error)
   }
 }
-
+/*
 const onPaused = () => {
   console.error('Paused')
 }
-
+*/
 const onError = () => {
   console.error('Erreur')
 }
@@ -169,10 +185,19 @@ const syncData = () => {
   } else {
     syncManager.value = postsDB.value
       .sync(urlPosts, opts)
-      .on('change', fetchData)
-      .on('paused', onPaused)
+      .on('change', (_info: any) => {
+        fetchData()
+      })
+      .on('paused', (_info: any) => {
+        fetchData()
+      })
+      .on('active', () => {
+        console.log('Synchro active')
+      })
       .on('error', onError)
     console.log('Synchro commencée.')
+
+    fetchData()
   }
 }
 
