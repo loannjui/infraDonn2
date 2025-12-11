@@ -57,12 +57,11 @@ const initDatabase = () => {
     postsDB.value = dbLocal
     commentsDB.value = dbComments
     initIndex(dbLocal)
-    dbLocal.replicate
-      .from(urlPosts)
-      .on('complete', syncData)
-      .then((_result) => {
-        fetchData()
-      })
+    dbLocal
+      .sync(urlPosts, { live: true, retry: true })
+      .on('change', fetchData)
+      .on('paused', onPaused)
+      .on('error', onError)
     dbComments.sync(urlComments, opts)
   } else {
     console.error('Something went wrong.', Error)
