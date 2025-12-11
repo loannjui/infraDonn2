@@ -33,6 +33,7 @@ declare interface Post {
 const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2'
 const urlComments = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2-comments'
 const opts = { live: true, retry: true }
+const changeOpts = { since: 'now', live: true, include_docs: true }
 
 // Référence à la base de données
 const postsDB = ref()
@@ -59,11 +60,17 @@ const initDatabase = () => {
     initIndex(dbLocal)
 
     dbLocal
-      .changes({
-        since: 'now',
-        live: true,
-        include_docs: true,
+      .changes(changeOpts)
+      .on('change', (change) => {
+        console.log(change)
+        fetchData()
       })
+      .on('error', (err) => {
+        console.error(err)
+      })
+
+    dbComments
+      .changes(changeOpts)
       .on('change', (change) => {
         console.log(change)
         fetchData()
@@ -78,7 +85,6 @@ const initDatabase = () => {
       .then((_result) => {
         fetchData()
       })
-    dbComments.sync(urlComments, opts)
   } else {
     console.error('Something went wrong.', Error)
   }
@@ -87,10 +93,11 @@ const initDatabase = () => {
 const onPaused = () => {
   console.error('Paused')
 }
-*/
+
 const onError = () => {
   console.error('Erreur')
 }
+  */
 /*
 // FACTORY donné par IA
 const generateRandomPosts = async (count: number) => {
@@ -183,18 +190,37 @@ const syncData = () => {
     console.log('Synchro déjà établie.')
     return
   } else {
-    syncManager.value = postsDB.value
-      .sync(urlPosts, opts)
-      .on('change', (_info: any) => {
-        fetchData()
-      })
-      .on('paused', (_info: any) => {
-        fetchData()
-      })
-      .on('active', () => {
-        console.log('Synchro active')
-      })
-      .on('error', onError)
+    syncManager.value = {
+      posts: postsDB.value
+        .sync(urlPosts, opts)
+        .on('change', (_info: any) => {
+          fetchData()
+        })
+        .on('paused', (_info: any) => {
+          fetchData()
+        })
+        .on('active', () => {
+          console.log('Synchro post active')
+        })
+        .on('error', (err: any) => {
+          console.error(err)
+        }),
+
+      comments: commentsDB.value
+        .sync(urlComments, opts)
+        .on('change', (_info: any) => {
+          fetchData()
+        })
+        .on('paused', () => {
+          fetchData()
+        })
+        .on('active', () => {
+          console.log('Synchro commentaires active')
+        })
+        .on('error', (err: any) => {
+          console.error(err)
+        }),
+    }
     console.log('Synchro commencée.')
 
     fetchData()
@@ -205,7 +231,14 @@ const stopSync = () => {
   if (!syncManager.value) {
     console.error('Pas de synchro active.')
   } else {
-    syncManager.value.cancel()
+    // SYNCHRO POSTS
+    if (syncManager.value.posts) {
+      syncManager.value.posts.cancel()
+    }
+    // SYNCHRO COMMENTS
+    if (syncManager.value.comments) {
+      syncManager.value.comments.cancel()
+    }
     syncManager.value = null
     console.log('Synchronisation arrêtée')
   }
