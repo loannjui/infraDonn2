@@ -224,7 +224,7 @@ const updateDoc = (post: Post) => {
       post_likes: post.post_likes,
       attributes: {
         post_category: post.attributes.post_category,
-        creation_date: new Date(),
+        creation_date: post.attributes.creation_date,
       },
     })
     .then(function (_response: any) {
@@ -295,7 +295,7 @@ const addComment = (postId: any, postContent: any) => {
 
   <!--  <button @click="syncData()">Sync Database</button>-->
   <div class="flex">
-    <article v-for="(post, index) in postsData" v-bind:key="(post as any).id">
+    <article v-for="(post, index) in postsData" :key="post._id">
       <form name="updateDoc" @submit.prevent="updateDoc(post)">
         <input
           class="message"
