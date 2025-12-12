@@ -51,16 +51,16 @@ onMounted(() => {
 
 const initDatabase = () => {
   console.log('=> Connexion à la base de données.')
-  const dbLocal = new PouchDB('local_collection')
-  console.log('=> Connecté à la collection : ' + dbLocal.name)
+  const dbPosts = new PouchDB('local_collection')
+  console.log('=> Connecté à la collection : ' + dbPosts.name)
   const dbComments = new PouchDB('local_comments')
   console.log('=> Connecté à la collection : ' + dbComments.name)
-  if (dbLocal) {
-    postsDB.value = dbLocal
+  if (dbPosts) {
+    postsDB.value = dbPosts
     commentsDB.value = dbComments
-    initIndex(dbLocal)
+    initIndex(dbPosts)
     // DB POSTS
-    dbLocal
+    dbPosts
       .changes(changeOpts)
       .on('change', (change) => {
         console.log(change)
@@ -80,11 +80,11 @@ const initDatabase = () => {
         console.error(err)
       })
 
-    dbLocal.replicate
+    dbPosts.replicate
       .from(urlPosts)
       .on('complete', syncData)
-      .then((_result) => {
-        fetchData()
+      .then((result) => {
+        console.log(result)
       })
   } else {
     console.error('Something went wrong.', Error)
@@ -129,8 +129,8 @@ const fetchData = () => {
       postsData.value = result.docs
       result.docs.forEach((post: Post) => fetchComments(post._id))
     })
-    .catch((error: any) => {
-      console.error('Erreur lors de la récupération des posts :', error)
+    .catch((err: any) => {
+      console.error('Erreur lors de la récupération des posts :', err)
     })
 }
 // Récupération des comments
@@ -153,8 +153,8 @@ const initIndex = (db: any) => {
     .then(function (_result: any) {
       console.log('Index catégories créé')
     })
-    .catch((error: any) => {
-      console.error("Erreur dans la création de l'index", error)
+    .catch((err: any) => {
+      console.error("Erreur dans la création de l'index", err)
     })
 
   // Tri par Likes
@@ -164,8 +164,8 @@ const initIndex = (db: any) => {
     .then((_result: any) => {
       console.log('Index pour post_likes créé')
     })
-    .catch((error: any) => {
-      console.error("Erreur dans la création de l'index post_likes", error)
+    .catch((err: any) => {
+      console.error("Erreur dans la création de l'index post_likes", err)
     })
 }
 
@@ -185,32 +185,32 @@ const syncData = () => {
     syncManager.value = {
       posts: postsDB.value
         .sync(urlPosts, opts)
-        .on('change', (_info: any) => {
-          fetchData()
+        .on('change', (info: any) => {
+          console.log(info)
         })
-        .on('paused', (_info: any) => {
-          fetchData()
+        .on('paused', (info: any) => {
+          console.log(info)
         })
-        .on('active', () => {
+        .on('active', (_info: any) => {
           console.log('Synchro post active')
         })
-        .on('error', (error: any) => {
-          console.error(error)
+        .on('error', (err: any) => {
+          console.error(err)
         }),
 
       comments: commentsDB.value
         .sync(urlComments, opts)
-        .on('change', (_info: any) => {
-          fetchData()
+        .on('change', (info: any) => {
+          console.log(info)
         })
-        .on('paused', () => {
-          fetchData()
+        .on('paused', (info: any) => {
+          console.log(info)
         })
-        .on('active', () => {
+        .on('active', (_info: any) => {
           console.log('Synchro commentaires active')
         })
-        .on('error', (error: any) => {
-          console.error(error)
+        .on('error', (err: any) => {
+          console.error(err)
         }),
     }
     console.log('Synchro commencée.')
@@ -254,12 +254,13 @@ const addDoc = (title: any, content: any, category: any) => {
         creation_date: new Date(),
       },
     })
-    .then(function (response: any) {
+    .then((response: any) => {
       console.log(response)
-      fetchData()
+      postTitle.value = ''
+      postContent.value = ''
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch((error: any) => {
+      console.log(error)
     })
 }
 
@@ -276,8 +277,8 @@ const updateDoc = (post: Post) => {
         creation_date: post.attributes.creation_date,
       },
     })
-    .then(function (_response: any) {
-      fetchData()
+    .then(function (response: any) {
+      console.log(response)
     })
     .catch(function (err: any) {
       console.log(err)
@@ -299,7 +300,6 @@ const removeDoc = (post: Post) => {
     })
     .then(function (response: any) {
       console.log(response)
-      fetchData()
     })
     .catch(function (err: any) {
       console.log(err)
@@ -311,17 +311,17 @@ const addLike = (post: Post) => {
   updateDoc(post)
 }
 
-const addComment = (postId: any, commentContent: any) => {
+const addComment = (postId: any, commentContent: any, index: number) => {
   commentsDB.value
     .post({
       post_id: postId,
       comment_content: commentContent,
     })
-    .then(function (response: any) {
+    .then((response: any) => {
       console.log(response)
-      fetchData()
+      commentContent[index] = ''
     })
-    .catch(function (err: any) {
+    .catch((err: any) => {
       console.log(err)
     })
 }
@@ -334,8 +334,8 @@ const updateComment = (comment: Comment) => {
       post_id: comment.post_id,
       comment_content: comment.comment_content,
     })
-    .then(function (_response: any) {
-      fetchData()
+    .then((response: any) => {
+      console.log(response)
     })
     .catch(function (err: any) {
       console.log(err)
@@ -350,9 +350,8 @@ const removeComment = (comment: Comment) => {
       post_id: comment.post_id,
       comment_content: comment.comment_content,
     })
-    .then(function (response: any) {
+    .then((response: any) => {
       console.log(response)
-      fetchData()
     })
     .catch(function (err: any) {
       console.log(err)
@@ -439,7 +438,7 @@ const removeComment = (comment: Comment) => {
           placeholder="Votre commentaire"
           minlength="1"
         />
-        <button @click="addComment(post._id, commentContent[index])">Add comment</button>
+        <button @click="addComment(post._id, commentContent[index], index)">Add comment</button>
 
         <span class="conflicts" v-if="post._conflicts">Conflits détectés</span>
       </form>
