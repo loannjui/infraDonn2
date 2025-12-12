@@ -311,11 +311,44 @@ const addLike = (post: Post) => {
   updateDoc(post)
 }
 
-const addComment = (postId: any, postContent: any) => {
+const addComment = (postId: any, commentContent: any) => {
   commentsDB.value
     .post({
       post_id: postId,
-      comment_content: postContent,
+      comment_content: commentContent,
+    })
+    .then(function (response: any) {
+      console.log(response)
+      fetchData()
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
+
+const updateComment = (comment: Comment) => {
+  commentsDB.value
+    .put({
+      _id: comment._id,
+      _rev: comment._rev,
+      post_id: comment.post_id,
+      comment_content: comment.comment_content,
+    })
+    .then(function (_response: any) {
+      fetchData()
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
+
+const removeComment = (comment: Comment) => {
+  commentsDB.value
+    .remove({
+      _id: comment._id,
+      _rev: comment._rev,
+      post_id: comment.post_id,
+      comment_content: comment.comment_content,
     })
     .then(function (response: any) {
       console.log(response)
@@ -382,9 +415,22 @@ const addComment = (postId: any, postContent: any) => {
         <button @click="removeDoc(post)">Delete</button>
         <br />
         <label><h2>Commentaire(s)</h2></label>
-        <p v-for="comment in post.comments" :key="comment._id">
-          {{ comment.comment_content }}
-        </p>
+        <div v-for="comment in post.comments" :key="comment._id">
+          <input
+            type="text"
+            id="updateCommentContent"
+            name="updateCommentContent"
+            :placeholder="comment.comment_content"
+            required
+            minlength="1"
+            v-model="comment.comment_content"
+          />
+
+          <button type="button" @click="updateComment(comment)">Update Com</button>
+          <button type="button" @click="removeComment(comment)">Remove Com</button>
+        </div>
+        <br />
+        <h2>Nouveau commentaire</h2>
         <input
           class="comment"
           type="text"

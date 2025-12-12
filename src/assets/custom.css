@@ -38,7 +38,7 @@ input {
     sans-serif;
   background-color: white;
   border: none;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 10);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.14);
   color: #3c4c42;
   padding: 0.5rem;
   border-radius: 1rem;
@@ -104,4 +104,9 @@ input:checked + .slider:before {
 
 .slider.round:before {
   border-radius: 50%;
+}
+
+#updateCommentContent {
+  background-color: #819a8b;
+  color: white;
 }
