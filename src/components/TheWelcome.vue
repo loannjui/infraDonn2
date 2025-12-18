@@ -28,6 +28,8 @@ declare interface Post {
     creation_date: any
   }
   comments?: Comment[]
+  _attachments?: {}
+  attachmentsURL?: string[]
 }
 
 const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/posts_juillerat_loann'
@@ -128,6 +130,7 @@ const fetchData = () => {
     .then((result: any) => {
       postsData.value = result.docs
       result.docs.forEach((post: Post) => fetchComments(post._id))
+      result.docs.forEach((post: Post) => fetchAttachments(post))
     })
     .catch((err: any) => {
       console.error('Erreur lors de la récupération des posts :', err)
@@ -143,6 +146,14 @@ const fetchComments = (postId: any) => {
       const post = postsData.value.find((p) => p._id === postId)
       if (post) post.comments = result.docs
     })
+}
+
+const fetchAttachments = (post: Post) => {
+  if (!post._attachments) return
+
+  for (const attName in post._attachments) {
+    loadAttachments(post, attName)
+  }
 }
 
 const initIndex = (db: any) => {
@@ -185,14 +196,14 @@ const syncData = () => {
     syncManager.value = {
       posts: postsDB.value
         .sync(urlPosts, opts)
-        .on('change', (info: any) => {
-          console.log(info)
+        .on('change', (_info: any) => {
+          console.log('Posts modifiés')
         })
-        .on('paused', (info: any) => {
-          console.log(info)
+        .on('paused', (_info: any) => {
+          console.log('Synchro posts mise en pause')
         })
         .on('active', (_info: any) => {
-          console.log('Synchro post active')
+          console.log('Synchro posts active')
         })
         .on('error', (err: any) => {
           console.error(err)
@@ -200,11 +211,11 @@ const syncData = () => {
 
       comments: commentsDB.value
         .sync(urlComments, opts)
-        .on('change', (info: any) => {
-          console.log(info)
+        .on('change', (_info: any) => {
+          console.log('Commentaires modifiés')
         })
-        .on('paused', (info: any) => {
-          console.log(info)
+        .on('paused', (_info: any) => {
+          console.log('Synchro commentaires mise en pause')
         })
         .on('active', (_info: any) => {
           console.log('Synchro commentaires active')
@@ -357,6 +368,42 @@ const removeComment = (comment: Comment) => {
       console.log(err)
     })
 }
+
+const addAttachement = (post: Post, event: Event) => {
+  const input = event.target as HTMLInputElement
+
+  if (!input.files) return
+
+  const myFile = input.files[0]
+
+  if (!myFile) return
+
+  postsDB.value
+    .putAttachment(post._id, myFile.name, post._rev!, myFile, myFile.type)
+    .then(function (response: any) {
+      console.log(response)
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
+
+const loadAttachments = (post: Post, name: any) => {
+  postsDB.value
+    .getAttachment(post._id, name, post._rev)
+    .then((blobOrBuffer: any) => {
+      const url = URL.createObjectURL(blobOrBuffer)
+      console.log(url)
+      if (!post.attachmentsURL) {
+        post.attachmentsURL = []
+      }
+      post.attachmentsURL.push(url)
+    })
+    .catch(function (err: any) {
+      console.log(err)
+      return null
+    })
+}
 </script>
 
 <template>
@@ -398,6 +445,12 @@ const removeComment = (comment: Comment) => {
           required
           minlength="1"
         />
+        {{ post.attachmentsURL }}
+        <div v-if="post.attachmentsURL">
+          <div v-for="url in post.attachmentsURL">
+            <img :src="url" alt="" />
+          </div>
+        </div>
         <span style="color: #fff">{{ post.post_likes }} ❤️</span>
         <button @click="addLike(post)" type="button">Add like</button>
         <select
@@ -439,6 +492,7 @@ const removeComment = (comment: Comment) => {
           minlength="1"
         />
         <button @click="addComment(post._id, commentContent[index], index)">Add comment</button>
+        <input type="file" @change="addAttachement(post, $event)" accept=".jpg, .jpeg, .png" />
 
         <span class="conflicts" v-if="post._conflicts">Conflits détectés</span>
       </form>
