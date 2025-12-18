@@ -30,8 +30,8 @@ declare interface Post {
   comments?: Comment[]
 }
 
-const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2'
-const urlComments = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/infradonn2-comments'
+const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/posts_juillerat_loann'
+const urlComments = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/comments_juillerat_loann'
 const opts = { live: true, retry: true }
 const changeOpts = { since: 'now', live: true, include_docs: true }
 
