@@ -30,7 +30,8 @@ declare interface Post {
   }
   comments?: Comment[]
   _attachments?: {}
-  attachmentsURL?: Array<{ url: string; name: string }>
+  // Pour plus facilement supprimer en ayant un nom pour l'image
+  attachmentsURL?: Array<{ url: string; attachmentName: string }>
 }
 
 const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/posts_juillerat_loann'
@@ -46,10 +47,12 @@ const commentsDB = ref<any>(null)
 const postsData = ref<Post[]>([])
 const syncManager = ref<any>(null)
 
+// Ref pour envoyer un id de post avec une valeur boolean. Utilisé dans fetchComments
+const showAllComments = ref<{ [key: string]: boolean }>({})
+
 onMounted(() => {
   console.log('=> Composant initialisé')
   initDatabase()
-  // generateRandomPosts(12)
 })
 
 const initDatabase = () => {
@@ -119,7 +122,9 @@ const fetchData = () => {
       })
 
       postsData.value = result.docs
+
       result.docs.forEach((post: Post) => {
+        // On regarde si le post a une valeur true/false (donc si tous les commentaires sont affichés ou pas) et on envoie la limite correspondante.
         const limit = showAllComments.value[post._id] ? 1000 : 1
         fetchComments(post._id, limit)
       })
@@ -130,7 +135,6 @@ const fetchData = () => {
     })
 }
 // Récupération des comments
-
 const fetchComments = (postId: any, limit: number) => {
   commentsDB.value
     .find({
@@ -147,8 +151,7 @@ const fetchComments = (postId: any, limit: number) => {
     })
 }
 
-// Toggle commentaire
-const showAllComments = ref<{ [key: string]: boolean }>({})
+// Toggle des commentaires pour UN SEUL post
 const toggleShowAllComments = (postId: string) => {
   showAllComments.value[postId] = !showAllComments.value[postId]
 
@@ -194,6 +197,7 @@ const initPostIndex = (db: any) => {
     })
 }
 
+// Pour récupérer le commentaire avec le plus de likes.
 const initCommentIndex = (db: any) => {
   db.createIndex({
     index: { fields: ['comment_likes'] },
@@ -405,7 +409,6 @@ const removeComment = (comment: Comment) => {
 
 const addAttachement = (post: Post, event: Event) => {
   const input = event.target as HTMLInputElement
-
   if (!input.files) return
 
   const myFile = input.files[0]
@@ -432,7 +435,6 @@ const removeAttachment = (post: Post, attachmentName: string) => {
   postsDB.value
     .removeAttachment(post._id, attachmentName, post._rev)
     .then((response: any) => {
-      console.log('Attachment supprimé:', response)
       post._rev = response.rev
       fetchAttachments(post)
     })
@@ -441,17 +443,18 @@ const removeAttachment = (post: Post, attachmentName: string) => {
     })
 }
 
-const loadAttachments = (post: Post, name: any) => {
+const loadAttachments = (post: Post, attachmentName: any) => {
   postsDB.value
-    .getAttachment(post._id, name)
+    .getAttachment(post._id, attachmentName)
     .then((blob: Blob) => {
       const url = URL.createObjectURL(blob)
       if (!post.attachmentsURL) post.attachmentsURL = []
-      post.attachmentsURL.push({ url, name })
+      post.attachmentsURL.push({ url, attachmentName })
+      // Pour forcer le refresh des images
       postsData.value = [...postsData.value]
     })
     .catch(function (err: any) {
-      console.log('Erreur chargement attachment:', err)
+      console.log(err)
     })
 }
 </script>
@@ -496,9 +499,9 @@ const loadAttachments = (post: Post, name: any) => {
           minlength="1"
         />
         <div v-if="post.attachmentsURL">
-          <div v-for="attachment in post.attachmentsURL" :key="attachment.name">
+          <div v-for="attachment in post.attachmentsURL" :key="attachment.attachmentName">
             <img :src="attachment.url" alt="" />
-            <button type="button" @click="removeAttachment(post, attachment.name)">Delete</button>
+            <button type="button" @click="removeAttachment(post, attachment.attachmentName)">Delete</button>
           </div>
         </div>
         <span style="color: #fff">{{ post.post_likes }} ❤️</span>
