@@ -30,7 +30,7 @@ declare interface Post {
   }
   comments?: Comment[]
   _attachments?: {}
-  attachmentsURL?: string[]
+  attachmentsURL?: Array<{ url: string; name: string }>
 }
 
 const urlPosts = 'http://admin_loann:2B$8a#oq7z89E9#g@localhost:5984/posts_juillerat_loann'
@@ -95,30 +95,6 @@ const initDatabase = () => {
     console.error('Something went wrong.', Error)
   }
 }
-/*
-// FACTORY donnée par IA
-const generateRandomPosts = async (count: number) => {
-  const posts = []
-
-  for (let i = 0; i < count; i++) {
-    posts.push({
-      _id: `${Date.now()}_${i}`,
-      post_name: `${Math.random().toString(36).substring(2)}`,
-      post_content: `${Math.random().toString(36).substring(2)}`,
-      post_likes: `${Math.round(Math.random() * 10)}`,
-      attributes: {
-        post_category: ['videogames', 'reading', 'cooking'][Math.floor(Math.random() * 3)],
-        creation_date: new Date(),
-      },
-    })
-  }
-  if (postsDB.value) {
-    await postsDB.value.bulkDocs(posts)
-    console.log(`${count} documents générés`)
-    fetchData()
-  }
-}
-*/
 // Récupération des posts
 const fetchData = () => {
   postsDB.value
@@ -143,7 +119,10 @@ const fetchData = () => {
       })
 
       postsData.value = result.docs
-      result.docs.forEach((post: Post) => fetchComments(post._id))
+      result.docs.forEach((post: Post) => {
+        const limit = showAllComments.value[post._id] ? 1000 : 1
+        fetchComments(post._id, limit)
+      })
       result.docs.forEach((post: Post) => fetchAttachments(post))
     })
     .catch((err: any) => {
@@ -151,7 +130,8 @@ const fetchData = () => {
     })
 }
 // Récupération des comments
-const fetchComments = (postId: any) => {
+
+const fetchComments = (postId: any, limit: number) => {
   commentsDB.value
     .find({
       selector: {
@@ -159,13 +139,26 @@ const fetchComments = (postId: any) => {
         comment_likes: { $gte: 0 },
       },
       sort: [{ comment_likes: 'desc' }],
-      limit: 10,
+      limit: limit,
     })
     .then((result: any) => {
       const post = postsData.value.find((p) => p._id === postId)
       if (post) post.comments = result.docs
     })
 }
+
+// Toggle commentaire
+const showAllComments = ref<{ [key: string]: boolean }>({})
+const toggleShowAllComments = (postId: string) => {
+  showAllComments.value[postId] = !showAllComments.value[postId]
+
+  if (showAllComments.value[postId]) {
+    fetchComments(postId, 1000)
+  } else {
+    fetchComments(postId, 1)
+  }
+}
+
 // Récupération des attachments
 const fetchAttachments = (post: Post) => {
   if (!post._attachments) return
@@ -430,13 +423,31 @@ const addAttachement = (post: Post, event: Event) => {
     })
 }
 
+const removeAttachment = (post: Post, attachmentName: string) => {
+  if (!post._rev) {
+    console.error('Pas de _rev disponible pour le post')
+    return
+  }
+
+  postsDB.value
+    .removeAttachment(post._id, attachmentName, post._rev)
+    .then((response: any) => {
+      console.log('Attachment supprimé:', response)
+      post._rev = response.rev
+      fetchAttachments(post)
+    })
+    .catch(function (err: any) {
+      console.log(err)
+    })
+}
+
 const loadAttachments = (post: Post, name: any) => {
   postsDB.value
     .getAttachment(post._id, name)
     .then((blob: Blob) => {
       const url = URL.createObjectURL(blob)
       if (!post.attachmentsURL) post.attachmentsURL = []
-      post.attachmentsURL.push(url)
+      post.attachmentsURL.push({ url, name })
       postsData.value = [...postsData.value]
     })
     .catch(function (err: any) {
@@ -485,8 +496,9 @@ const loadAttachments = (post: Post, name: any) => {
           minlength="1"
         />
         <div v-if="post.attachmentsURL">
-          <div v-for="url in post.attachmentsURL">
-            <img :src="url" alt="" />
+          <div v-for="attachment in post.attachmentsURL" :key="attachment.name">
+            <img :src="attachment.url" alt="" />
+            <button type="button" @click="removeAttachment(post, attachment.name)">Delete</button>
           </div>
         </div>
         <span style="color: #fff">{{ post.post_likes }} ❤️</span>
@@ -520,6 +532,13 @@ const loadAttachments = (post: Post, name: any) => {
           <button type="button" @click="updateComment(comment)">Update</button>
           <button type="button" @click="removeComment(comment)">Remove</button>
         </div>
+        <button type="button" @click="toggleShowAllComments(post._id)" v-if="post.comments">
+          {{
+            showAllComments[post._id]
+              ? 'Masquer les commentaires'
+              : 'Afficher tous les commentaires'
+          }}
+        </button>
         <br />
         <h2>Nouveau commentaire</h2>
         <input
