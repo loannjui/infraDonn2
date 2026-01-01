@@ -14,6 +14,7 @@ interface Comment {
   _conflicts?: string[]
   post_id: string
   comment_content: string
+  comment_likes: number
 }
 
 declare interface Post {
@@ -60,7 +61,9 @@ const initDatabase = () => {
   if (dbPosts) {
     postsDB.value = dbPosts
     commentsDB.value = dbComments
-    initIndex(dbPosts)
+    // Création des index
+    initCommentIndex(dbComments)
+    initPostIndex(dbPosts)
     // DB POSTS
     dbPosts
       .changes(changeOpts)
@@ -93,7 +96,7 @@ const initDatabase = () => {
   }
 }
 /*
-// FACTORY donné par IA
+// FACTORY donnée par IA
 const generateRandomPosts = async (count: number) => {
   const posts = []
 
@@ -126,8 +129,19 @@ const fetchData = () => {
       },
       sort: [{ post_likes: 'desc' }],
       limit: 10,
+      include_docs: true,
     })
     .then((result: any) => {
+      // Pour pas supprimer les attachemntsURL si on ajoute un commentaire.
+      result.docs.forEach((newPost: Post) => {
+        const existingPost = postsData.value.find((p) => p._id === newPost._id)
+        if (existingPost?.attachmentsURL) {
+          newPost.attachmentsURL = existingPost.attachmentsURL
+        } else {
+          newPost.attachmentsURL = []
+        }
+      })
+
       postsData.value = result.docs
       result.docs.forEach((post: Post) => fetchComments(post._id))
       result.docs.forEach((post: Post) => fetchAttachments(post))
@@ -140,23 +154,30 @@ const fetchData = () => {
 const fetchComments = (postId: any) => {
   commentsDB.value
     .find({
-      selector: { post_id: postId },
+      selector: {
+        post_id: postId,
+        comment_likes: { $gte: 0 },
+      },
+      sort: [{ comment_likes: 'desc' }],
+      limit: 10,
     })
     .then((result: any) => {
       const post = postsData.value.find((p) => p._id === postId)
       if (post) post.comments = result.docs
     })
 }
-
+// Récupération des attachments
 const fetchAttachments = (post: Post) => {
   if (!post._attachments) return
+  // On vide le tableau à chaque fetch
+  post.attachmentsURL = []
 
   for (const attName in post._attachments) {
     loadAttachments(post, attName)
   }
 }
 
-const initIndex = (db: any) => {
+const initPostIndex = (db: any) => {
   // Tri par catégorie
   db.createIndex({
     index: { fields: ['attributes.post_category'] },
@@ -177,6 +198,18 @@ const initIndex = (db: any) => {
     })
     .catch((err: any) => {
       console.error("Erreur dans la création de l'index post_likes", err)
+    })
+}
+
+const initCommentIndex = (db: any) => {
+  db.createIndex({
+    index: { fields: ['comment_likes'] },
+  })
+    .then(() => {
+      console.log('Index pour comment_likes créé')
+    })
+    .catch((err: any) => {
+      console.error("Erreur dans la création de l'index comment_likes", err)
     })
 }
 
@@ -254,7 +287,7 @@ const indexCategory = ref('videogames')
 
 const commentContent = ref([])
 
-const addDoc = (title: any, content: any, category: any) => {
+const addPost = (title: any, content: any, category: any) => {
   postsDB.value
     .post({
       post_name: title,
@@ -275,7 +308,7 @@ const addDoc = (title: any, content: any, category: any) => {
     })
 }
 
-const updateDoc = (post: Post) => {
+const updatePost = (post: Post) => {
   postsDB.value
     .put({
       _id: post._id,
@@ -296,7 +329,7 @@ const updateDoc = (post: Post) => {
     })
 }
 
-const removeDoc = (post: Post) => {
+const removePost = (post: Post) => {
   postsDB.value
     .remove({
       _id: post._id,
@@ -317,9 +350,14 @@ const removeDoc = (post: Post) => {
     })
 }
 
-const addLike = (post: Post) => {
+const addPostLike = (post: Post) => {
   post.post_likes++
-  updateDoc(post)
+  updatePost(post)
+}
+
+const addComLike = (comment: Comment) => {
+  comment.comment_likes++
+  updateComment(comment)
 }
 
 const addComment = (postId: any, commentContent: any, index: number) => {
@@ -327,6 +365,7 @@ const addComment = (postId: any, commentContent: any, index: number) => {
     .post({
       post_id: postId,
       comment_content: commentContent,
+      comment_likes: 0,
     })
     .then((response: any) => {
       console.log(response)
@@ -344,6 +383,7 @@ const updateComment = (comment: Comment) => {
       _rev: comment._rev,
       post_id: comment.post_id,
       comment_content: comment.comment_content,
+      comment_likes: comment.comment_likes,
     })
     .then((response: any) => {
       console.log(response)
@@ -360,6 +400,7 @@ const removeComment = (comment: Comment) => {
       _rev: comment._rev,
       post_id: comment.post_id,
       comment_content: comment.comment_content,
+      comment_likes: comment.comment_likes,
     })
     .then((response: any) => {
       console.log(response)
@@ -380,8 +421,9 @@ const addAttachement = (post: Post, event: Event) => {
 
   postsDB.value
     .putAttachment(post._id, myFile.name, post._rev!, myFile, myFile.type)
-    .then(function (response: any) {
-      console.log(response)
+    .then((response: any) => {
+      post._rev = response.rev
+      fetchAttachments(post)
     })
     .catch(function (err: any) {
       console.log(err)
@@ -390,18 +432,15 @@ const addAttachement = (post: Post, event: Event) => {
 
 const loadAttachments = (post: Post, name: any) => {
   postsDB.value
-    .getAttachment(post._id, name, post._rev)
-    .then((blobOrBuffer: any) => {
-      const url = URL.createObjectURL(blobOrBuffer)
-      console.log(url)
-      if (!post.attachmentsURL) {
-        post.attachmentsURL = []
-      }
+    .getAttachment(post._id, name)
+    .then((blob: Blob) => {
+      const url = URL.createObjectURL(blob)
+      if (!post.attachmentsURL) post.attachmentsURL = []
       post.attachmentsURL.push(url)
+      postsData.value = [...postsData.value]
     })
     .catch(function (err: any) {
-      console.log(err)
-      return null
+      console.log('Erreur chargement attachment:', err)
     })
 }
 </script>
@@ -424,7 +463,7 @@ const loadAttachments = (post: Post, name: any) => {
   <!--  <button @click="syncData()">Sync Database</button>-->
   <div class="flex">
     <article v-for="(post, index) in postsData" :key="post._id">
-      <form name="updateDoc" @submit.prevent="updateDoc(post)">
+      <form name="updatePost" @submit.prevent="updatePost(post)">
         <input
           class="message"
           type="text"
@@ -445,14 +484,13 @@ const loadAttachments = (post: Post, name: any) => {
           required
           minlength="1"
         />
-        {{ post.attachmentsURL }}
         <div v-if="post.attachmentsURL">
           <div v-for="url in post.attachmentsURL">
             <img :src="url" alt="" />
           </div>
         </div>
         <span style="color: #fff">{{ post.post_likes }} ❤️</span>
-        <button @click="addLike(post)" type="button">Add like</button>
+        <button @click="addPostLike(post)" type="button">Like</button>
         <select
           id="postCategory"
           v-model="post.attributes.post_category"
@@ -464,7 +502,7 @@ const loadAttachments = (post: Post, name: any) => {
           <option value="cooking">Cuisiner</option>
         </select>
         <button type="submit">Update</button>
-        <button @click="removeDoc(post)">Delete</button>
+        <button @click="removePost(post)">Delete</button>
         <br />
         <label><h2>Commentaire(s)</h2></label>
         <div v-for="comment in post.comments" :key="comment._id">
@@ -477,9 +515,10 @@ const loadAttachments = (post: Post, name: any) => {
             minlength="1"
             v-model="comment.comment_content"
           />
-
-          <button type="button" @click="updateComment(comment)">Update Com</button>
-          <button type="button" @click="removeComment(comment)">Remove Com</button>
+          <span style="color: #fff">{{ comment.comment_likes }} ❤️</span>
+          <button @click="addComLike(comment)" type="button">Like</button>
+          <button type="button" @click="updateComment(comment)">Update</button>
+          <button type="button" @click="removeComment(comment)">Remove</button>
         </div>
         <br />
         <h2>Nouveau commentaire</h2>
@@ -498,8 +537,8 @@ const loadAttachments = (post: Post, name: any) => {
       </form>
     </article>
   </div>
-  <form id="addDoc" name="addDoc" @submit.prevent="addDoc(postTitle, postContent, postCategory)">
-    <label for="sendId">Add New Doc</label><br />
+  <form id="addPost" name="addPost" @submit.prevent="addPost(postTitle, postContent, postCategory)">
+    <label for="sendId">Add New Post</label><br />
     <input
       type="text"
       id="postTitle"
