@@ -151,7 +151,7 @@ const fetchComments = (postId: any, limit: number) => {
     })
 }
 
-// Toggle des commentaires pour UN SEUL post
+// Toggle des commentaires
 const toggleShowAllComments = (postId: string) => {
   showAllComments.value[postId] = !showAllComments.value[postId]
 
@@ -197,7 +197,7 @@ const initPostIndex = (db: any) => {
     })
 }
 
-// Pour récupérer le commentaire avec le plus de likes.
+// Pour récupérer les commentaires avec le plus de likes.
 const initCommentIndex = (db: any) => {
   db.createIndex({
     index: { fields: ['comment_likes'] },
@@ -427,14 +427,10 @@ const addAttachement = (post: Post, event: Event) => {
 }
 
 const removeAttachment = (post: Post, attachmentName: string) => {
-  if (!post._rev) {
-    console.error('Pas de _rev disponible pour le post')
-    return
-  }
-
   postsDB.value
     .removeAttachment(post._id, attachmentName, post._rev)
     .then((response: any) => {
+      // On met à jour la révision pour éviter les conflits
       post._rev = response.rev
       fetchAttachments(post)
     })
@@ -443,14 +439,16 @@ const removeAttachment = (post: Post, attachmentName: string) => {
     })
 }
 
-const loadAttachments = (post: Post, attachmentName: any) => {
+const loadAttachments = (post: Post, attachmentName: string) => {
   postsDB.value
     .getAttachment(post._id, attachmentName)
     .then((blob: Blob) => {
       const url = URL.createObjectURL(blob)
+      // Initialise le tableau s'il n'existe pas déjà
       if (!post.attachmentsURL) post.attachmentsURL = []
+      // Ensuite on push l'url + le nom de l'image 
       post.attachmentsURL.push({ url, attachmentName })
-      // Pour forcer le refresh des images
+      // On recrée le tableau avec les mêmes valeurs pour forcer un refresh
       postsData.value = [...postsData.value]
     })
     .catch(function (err: any) {
@@ -501,7 +499,9 @@ const loadAttachments = (post: Post, attachmentName: any) => {
         <div v-if="post.attachmentsURL">
           <div v-for="attachment in post.attachmentsURL" :key="attachment.attachmentName">
             <img :src="attachment.url" alt="" />
-            <button type="button" @click="removeAttachment(post, attachment.attachmentName)">Delete</button>
+            <button type="button" @click="removeAttachment(post, attachment.attachmentName)">
+              Delete
+            </button>
           </div>
         </div>
         <span style="color: #fff">{{ post.post_likes }} ❤️</span>
