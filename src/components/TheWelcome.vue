@@ -219,7 +219,7 @@ const logInLogOut = () => {
     syncData()
   }
 }
-
+// Synchro séparée pour les deux DB.
 const syncData = () => {
   if (syncManager.value) {
     console.log('Synchro déjà établie.')
