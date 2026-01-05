@@ -1,10 +1,10 @@
 /* CSS fourni par IA et édité par moi aussi */
 :root {
-  --primary-color: #4f46e5;
-  --primary-hover: #4338ca;
+  --primary-color: #5860c1;
+  --primary-hover: #212141;
   --danger-color: #ef4444;
   --danger-hover: #dc2626;
-  --success-color: #10b981;
+  --success-color: #10b96a;
   --bg-dark: #1a1a2e;
   --bg-card: #16213e;
   --bg-input: #0f1729;
@@ -80,7 +80,7 @@ select:hover {
 select:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(19, 18, 46, 0.1);
 }
 
 /* Toggle Switch */
@@ -217,7 +217,7 @@ button {
 button:hover {
   background: var(--primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 14, 45, 0.4);
 }
 
 button:active {

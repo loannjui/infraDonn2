@@ -111,9 +111,11 @@ const fetchData = () => {
       include_docs: true,
     })
     .then((result: any) => {
-      // Pour pas supprimer les attachemntsURL si on ajoute un commentaire.
+      // Pour pas supprimer les attachemntsURL si on like/ajoute un commentaire.
       result.docs.forEach((newPost: Post) => {
+        // On vérifie si le post existe
         const existingPost = postsData.value.find((p) => p._id === newPost._id)
+        // On copie les attchments du post dans le "nouveau" post qui a été liké/updaté/... sinon on rend un tableau vide.
         if (existingPost?.attachmentsURL) {
           newPost.attachmentsURL = existingPost.attachmentsURL
         } else {
@@ -446,7 +448,7 @@ const loadAttachments = (post: Post, attachmentName: string) => {
       const url = URL.createObjectURL(blob)
       // Initialise le tableau s'il n'existe pas déjà
       if (!post.attachmentsURL) post.attachmentsURL = []
-      // Ensuite on push l'url + le nom de l'image 
+      // Ensuite on push l'url + le nom de l'image
       post.attachmentsURL.push({ url, attachmentName })
       // On recrée le tableau avec les mêmes valeurs pour forcer un refresh
       postsData.value = [...postsData.value]
@@ -516,8 +518,8 @@ const loadAttachments = (post: Post, attachmentName: string) => {
           <option value="reading">Lire</option>
           <option value="cooking">Cuisiner</option>
         </select>
-        <button type="submit">Update</button>
-        <button @click="removePost(post)">Delete</button>
+        <button type="submit">Update Post</button>
+        <button @click="removePost(post)">Delete Post</button>
         <br />
         <label><h2>Commentaire(s)</h2></label>
         <div v-for="comment in post.comments" :key="comment._id">
@@ -536,14 +538,10 @@ const loadAttachments = (post: Post, attachmentName: string) => {
           <button type="button" @click="removeComment(comment)">Remove</button>
         </div>
         <button type="button" @click="toggleShowAllComments(post._id)" v-if="post.comments">
-          {{
-            showAllComments[post._id]
-              ? 'Masquer les commentaires'
-              : 'Afficher tous les commentaires'
-          }}
+          {{ showAllComments[post._id] ? 'Hide comments' : 'Show all comments' }}
         </button>
         <br />
-        <h2>Nouveau commentaire</h2>
+        <h2>New Comment</h2>
         <input
           class="comment"
           type="text"
