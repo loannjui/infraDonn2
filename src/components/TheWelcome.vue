@@ -47,6 +47,8 @@ const commentsDB = ref<any>(null)
 const postsData = ref<Post[]>([])
 const syncManager = ref<any>(null)
 
+const postLimit = ref(10)
+const morePosts = ref(false)
 // Ref pour envoyer un id de post avec une valeur boolean. Utilisé dans fetchComments
 const showAllComments = ref<{ [key: string]: boolean }>({})
 
@@ -107,10 +109,14 @@ const fetchData = () => {
         post_likes: { $gte: 0 },
       },
       sort: [{ post_likes: 'desc' }],
-      limit: 10,
+      limit: postLimit.value + 1,
       include_docs: true,
     })
     .then((result: any) => {
+      // S'il y en a plus que 10, on affichera le bouton "Display More"
+      morePosts.value = result.docs.length > postLimit.value
+      // On retire 1 résultat
+      result.docs.slice(0, postLimit.value)
       // Pour pas supprimer les attachemntsURL si on like/ajoute un commentaire.
       result.docs.forEach((newPost: Post) => {
         // On vérifie si le post existe
@@ -136,6 +142,13 @@ const fetchData = () => {
       console.error('Erreur lors de la récupération des posts :', err)
     })
 }
+
+// Augmentation limite des posts affichés
+const displayMorePosts = () => {
+  postLimit.value += 10
+  fetchData()
+}
+
 // Récupération des comments
 const fetchComments = (postId: any, limit: number) => {
   commentsDB.value
@@ -460,21 +473,21 @@ const loadAttachments = (post: Post, attachmentName: string) => {
 </script>
 
 <template>
-  <h1>Fetch Data</h1>
-  <label>Changer catégorie </label>
-  <select v-model="indexCategory" @change="fetchData()">
-    <option value="videogames">Jeux vidéo</option>
-    <option value="reading">Lire</option>
-    <option value="cooking">Cuisiner</option>
-  </select>
+  <div class="header">
+    <h1>Fetch Posts</h1>
+    <label>Changer catégorie </label>
+    <select v-model="indexCategory" @change="fetchData()">
+      <option value="videogames">Jeux vidéo</option>
+      <option value="reading">Lire</option>
+      <option value="cooking">Cuisiner</option>
+    </select>
 
-  <p>Online :</p>
-  <label class="switch">
-    <input @click="logInLogOut()" type="checkbox" checked />
-    <span class="slider round"></span>
-  </label>
-
-  <!--  <button @click="syncData()">Sync Database</button>-->
+    <p>Online :</p>
+    <label class="switch">
+      <input @click="logInLogOut()" type="checkbox" checked />
+      <span class="slider round"></span>
+    </label>
+  </div>
   <div class="flex">
     <article v-for="(post, index) in postsData" :key="post._id">
       <form name="updatePost" @submit.prevent="updatePost(post)">
@@ -557,6 +570,7 @@ const loadAttachments = (post: Post, attachmentName: string) => {
       </form>
     </article>
   </div>
+  <button v-if="morePosts" @click="displayMorePosts()" class="load-more-btn">Display more</button>
   <form id="addPost" name="addPost" @submit.prevent="addPost(postTitle, postContent, postCategory)">
     <label for="sendId">Add New Post</label><br />
     <input
