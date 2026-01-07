@@ -51,6 +51,7 @@ const postLimit = ref(10)
 const morePosts = ref(false)
 // Ref pour envoyer un id de post avec une valeur boolean. Utilisé dans fetchComments
 const showAllComments = ref<{ [key: string]: boolean }>({})
+const moreComments = ref<{ [key: string]: boolean }>({})
 
 onMounted(() => {
   console.log('=> Composant initialisé')
@@ -76,7 +77,7 @@ const initDatabase = () => {
         fetchData()
       })
       .on('error', (error) => {
-        console.error("Erreur dans la base Posts", error)
+        console.error('Erreur dans la base Posts', error)
       })
     // DB COMMENTS
     dbComments
@@ -85,7 +86,7 @@ const initDatabase = () => {
         fetchData()
       })
       .on('error', (error) => {
-        console.error("Erreur dans la base Comments", error)
+        console.error('Erreur dans la base Comments', error)
       })
 
     dbPosts.replicate
@@ -114,9 +115,9 @@ const fetchData = () => {
       // S'il y en a plus que 10, on affichera le bouton "Display More"
       morePosts.value = result.docs.length > postLimit.value
       // On retire 1 résultat
-      result.docs.slice(0, postLimit.value)
+      const limitedDocs = result.docs.slice(0, postLimit.value)
       // Pour pas supprimer les attachemntsURL si on like/ajoute un commentaire.
-      result.docs.forEach((newPost: Post) => {
+      limitedDocs.forEach((newPost: Post) => {
         // On vérifie si le post existe
         const existingPost = postsData.value.find((p) => p._id === newPost._id)
         // On copie les attchments du post dans le "nouveau" post qui a été liké/updaté/... sinon on rend un tableau vide.
@@ -156,11 +157,14 @@ const fetchComments = (postId: any, limit: number) => {
         comment_likes: { $gte: 0 },
       },
       sort: [{ comment_likes: 'desc' }],
-      limit: limit,
+      limit: limit + 1,
     })
     .then((result: any) => {
-      const post = postsData.value.find((p) => p._id === postId)
-      if (post) post.comments = result.docs
+      const post = postsData.value.find((p) => p._id === postId) as Post
+      // S'il y en a plus qu'1, on affichera le bouton "Show all comments"
+      moreComments.value[postId] = result.docs.length > limit
+      // On retire 1 résultat
+      post.comments = result.docs.slice(0, limit)
     })
 }
 
@@ -239,9 +243,6 @@ const syncData = () => {
     syncManager.value = {
       posts: postsDB.value
         .sync(urlPosts, opts)
-        .on('change', (_info: any) => {
-          console.log('Posts modifiés')
-        })
         .on('paused', (_info: any) => {
           console.log('Synchro posts mise en pause')
         })
@@ -254,9 +255,6 @@ const syncData = () => {
 
       comments: commentsDB.value
         .sync(urlComments, opts)
-        .on('change', (_info: any) => {
-          console.log('Commentaires modifiés')
-        })
         .on('paused', (_info: any) => {
           console.log('Synchro commentaires mise en pause')
         })
@@ -309,12 +307,12 @@ const addPost = (title: any, content: any, category: any) => {
       },
     })
     .then((_response: any) => {
-      console.log('Nouveau post ajouté.')
+      // console.log('Nouveau post ajouté.')
       postTitle.value = ''
       postContent.value = ''
     })
     .catch((error: any) => {
-      console.log("Erreur dans l'ajout de post : ", error)
+      console.error("Erreur dans l'ajout de post : ", error)
     })
 }
 
@@ -332,10 +330,10 @@ const updatePost = (post: Post) => {
       },
     })
     .then(function (_response: any) {
-      console.log('Post modifié.')
+      // console.log('Post modifié.')
     })
     .catch(function (error: any) {
-      console.log('Erreur dans la mise à jour du post : ', error)
+      console.error('Erreur dans la mise à jour du post : ', error)
     })
 }
 
@@ -353,10 +351,10 @@ const removePost = (post: Post) => {
       },
     })
     .then(function (response: any) {
-      console.log('Post supprimé.')
+      // console.log('Post supprimé.')
     })
     .catch(function (error: any) {
-      console.log('Erreur dans la suppression du post : ', error)
+      console.error('Erreur dans la suppression du post : ', error)
     })
 }
 
@@ -378,11 +376,11 @@ const addComment = (postId: any, commentContent: any, index: number) => {
       comment_likes: 0,
     })
     .then((_response: any) => {
-      console.log('Commentaire ajouté.')
-      commentContent[index] = ''
+      // console.log('Commentaire ajouté.')
+      commentContent.value[index] = ''
     })
     .catch((error: any) => {
-      console.log("Erreur dans l'ajout du commentaire' : ", error)
+      console.error("Erreur dans l'ajout du commentaire' : ", error)
     })
 }
 
@@ -396,10 +394,10 @@ const updateComment = (comment: Comment) => {
       comment_likes: comment.comment_likes,
     })
     .then((_response: any) => {
-      console.log('Commentaire modifié.')
+      // console.log('Commentaire modifié.')
     })
     .catch(function (error: any) {
-      console.log("Erreur dans la modification du commentaire' : ", error)
+      console.error("Erreur dans la modification du commentaire' : ", error)
     })
 }
 
@@ -413,10 +411,10 @@ const removeComment = (comment: Comment) => {
       comment_likes: comment.comment_likes,
     })
     .then((_response: any) => {
-      console.log('Commentaire supprimé.')
+      // console.log('Commentaire supprimé.')
     })
     .catch(function (error: any) {
-      console.log("Erreur dans la suppression du commentaire' : ", error)
+      console.error("Erreur dans la suppression du commentaire' : ", error)
     })
 }
 
@@ -433,10 +431,10 @@ const addAttachement = (post: Post, event: Event) => {
     .then((response: any) => {
       post._rev = response.rev
       fetchAttachments(post)
-      console.log('Média ajouté.')
+      // console.log('Média ajouté.')
     })
     .catch(function (error: any) {
-      console.log("Erreur dans l'ajout du média : ", error)
+      console.error("Erreur dans l'ajout du média : ", error)
     })
 }
 
@@ -447,10 +445,10 @@ const removeAttachment = (post: Post, attachmentName: string) => {
       // On met à jour la révision pour éviter les conflits
       post._rev = response.rev
       fetchAttachments(post)
-      console.log('Média supprimé.')
+      // console.log('Média supprimé.')
     })
     .catch(function (error: any) {
-      console.log('Erreur dans la suppression du média : ', error)
+      console.error('Erreur dans la suppression du média : ', error)
     })
 }
 
@@ -465,10 +463,10 @@ const loadAttachments = (post: Post, attachmentName: string) => {
       post.attachmentsURL.push({ url, attachmentName })
       // On recrée le tableau avec les mêmes valeurs pour forcer un refresh
       postsData.value = [...postsData.value]
-      console.log('Médias chargés!')
+      // console.log('Médias chargés!')
     })
     .catch(function (error: any) {
-      console.log('Erreur pendant le chargement des médias : ', error)
+      console.error('Erreur pendant le chargement des médias : ', error)
     })
 }
 </script>
@@ -551,7 +549,11 @@ const loadAttachments = (post: Post, attachmentName: string) => {
           <button type="button" @click="updateComment(comment)">Update</button>
           <button type="button" @click="removeComment(comment)">Remove</button>
         </div>
-        <button type="button" @click="toggleShowAllComments(post._id)" v-if="post.comments">
+        <button
+          type="button"
+          @click="toggleShowAllComments(post._id)"
+          v-if="moreComments[post._id] || showAllComments[post._id]"
+        >
           {{ showAllComments[post._id] ? 'Hide comments' : 'Show all comments' }}
         </button>
         <br />
