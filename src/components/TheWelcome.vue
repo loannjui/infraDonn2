@@ -72,22 +72,20 @@ const initDatabase = () => {
     // DB POSTS
     dbPosts
       .changes(changeOpts)
-      .on('change', (change) => {
-        console.log(change)
+      .on('change', (_change) => {
         fetchData()
       })
-      .on('error', (err) => {
-        console.error(err)
+      .on('error', (error) => {
+        console.error("Erreur dans la base Posts", error)
       })
     // DB COMMENTS
     dbComments
       .changes(changeOpts)
-      .on('change', (change) => {
-        console.log(change)
+      .on('change', (_change) => {
         fetchData()
       })
-      .on('error', (err) => {
-        console.error(err)
+      .on('error', (error) => {
+        console.error("Erreur dans la base Comments", error)
       })
 
     dbPosts.replicate
@@ -310,13 +308,13 @@ const addPost = (title: any, content: any, category: any) => {
         creation_date: new Date(),
       },
     })
-    .then((response: any) => {
-      console.log(response)
+    .then((_response: any) => {
+      console.log('Nouveau post ajouté.')
       postTitle.value = ''
       postContent.value = ''
     })
     .catch((error: any) => {
-      console.log(error)
+      console.log("Erreur dans l'ajout de post : ", error)
     })
 }
 
@@ -333,11 +331,11 @@ const updatePost = (post: Post) => {
         creation_date: post.attributes.creation_date,
       },
     })
-    .then(function (response: any) {
-      console.log(response)
+    .then(function (_response: any) {
+      console.log('Post modifié.')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log('Erreur dans la mise à jour du post : ', error)
     })
 }
 
@@ -355,10 +353,10 @@ const removePost = (post: Post) => {
       },
     })
     .then(function (response: any) {
-      console.log(response)
+      console.log('Post supprimé.')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log('Erreur dans la suppression du post : ', error)
     })
 }
 
@@ -379,12 +377,12 @@ const addComment = (postId: any, commentContent: any, index: number) => {
       comment_content: commentContent,
       comment_likes: 0,
     })
-    .then((response: any) => {
-      console.log(response)
+    .then((_response: any) => {
+      console.log('Commentaire ajouté.')
       commentContent[index] = ''
     })
-    .catch((err: any) => {
-      console.log(err)
+    .catch((error: any) => {
+      console.log("Erreur dans l'ajout du commentaire' : ", error)
     })
 }
 
@@ -397,11 +395,11 @@ const updateComment = (comment: Comment) => {
       comment_content: comment.comment_content,
       comment_likes: comment.comment_likes,
     })
-    .then((response: any) => {
-      console.log(response)
+    .then((_response: any) => {
+      console.log('Commentaire modifié.')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log("Erreur dans la modification du commentaire' : ", error)
     })
 }
 
@@ -414,11 +412,11 @@ const removeComment = (comment: Comment) => {
       comment_content: comment.comment_content,
       comment_likes: comment.comment_likes,
     })
-    .then((response: any) => {
-      console.log(response)
+    .then((_response: any) => {
+      console.log('Commentaire supprimé.')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log("Erreur dans la suppression du commentaire' : ", error)
     })
 }
 
@@ -435,9 +433,10 @@ const addAttachement = (post: Post, event: Event) => {
     .then((response: any) => {
       post._rev = response.rev
       fetchAttachments(post)
+      console.log('Média ajouté.')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log("Erreur dans l'ajout du média : ", error)
     })
 }
 
@@ -448,9 +447,10 @@ const removeAttachment = (post: Post, attachmentName: string) => {
       // On met à jour la révision pour éviter les conflits
       post._rev = response.rev
       fetchAttachments(post)
+      console.log('Média supprimé.')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log('Erreur dans la suppression du média : ', error)
     })
 }
 
@@ -465,9 +465,10 @@ const loadAttachments = (post: Post, attachmentName: string) => {
       post.attachmentsURL.push({ url, attachmentName })
       // On recrée le tableau avec les mêmes valeurs pour forcer un refresh
       postsData.value = [...postsData.value]
+      console.log('Médias chargés!')
     })
-    .catch(function (err: any) {
-      console.log(err)
+    .catch(function (error: any) {
+      console.log('Erreur pendant le chargement des médias : ', error)
     })
 }
 </script>
