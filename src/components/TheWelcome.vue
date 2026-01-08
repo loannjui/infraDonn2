@@ -128,7 +128,7 @@ const fetchData = () => {
         }
       })
 
-      postsData.value = result.docs
+      postsData.value = limitedDocs
 
       result.docs.forEach((post: Post) => {
         // On regarde si le post a une valeur true/false (donc si tous les commentaires sont affichés ou pas) et on envoie la limite correspondante.
