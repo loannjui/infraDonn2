@@ -56,6 +56,7 @@ const moreComments = ref<{ [key: string]: boolean }>({})
 onMounted(() => {
   console.log('=> Composant initialisé')
   initDatabase()
+  // generateRandomPosts(50)
 })
 
 const initDatabase = () => {
@@ -89,12 +90,12 @@ const initDatabase = () => {
         console.error('Erreur dans la base Comments', error)
       })
 
-    dbPosts.replicate
-      .from(urlPosts)
-      .on('complete', syncData)
-      .then((result) => {
-        console.log(result)
-      })
+    Promise.all([dbPosts.replicate.from(urlPosts), dbComments.replicate.from(urlComments)]).then(
+      () => {
+        console.log('Réplication des posts et comments terminée.')
+        syncData()
+      },
+    )
   } else {
     console.error('Something went wrong.', Error)
   }
@@ -130,12 +131,12 @@ const fetchData = () => {
 
       postsData.value = limitedDocs
 
-      result.docs.forEach((post: Post) => {
+      limitedDocs.forEach((post: Post) => {
         // On regarde si le post a une valeur true/false (donc si tous les commentaires sont affichés ou pas) et on envoie la limite correspondante.
-        const limit = showAllComments.value[post._id] ? 1000 : 1
+        const limit = showAllComments.value[post._id] ? 9999 : 1
         fetchComments(post._id, limit)
       })
-      result.docs.forEach((post: Post) => fetchAttachments(post))
+      limitedDocs.forEach((post: Post) => fetchAttachments(post))
     })
     .catch((err: any) => {
       console.error('Erreur lors de la récupération des posts :', err)
@@ -173,7 +174,7 @@ const toggleShowAllComments = (postId: string) => {
   showAllComments.value[postId] = !showAllComments.value[postId]
 
   if (showAllComments.value[postId]) {
-    fetchComments(postId, 1000)
+    fetchComments(postId, 9999)
   } else {
     fetchComments(postId, 1)
   }
@@ -293,7 +294,7 @@ const postContent = ref('')
 const postCategory = ref('videogames')
 const indexCategory = ref('videogames')
 
-const commentContent = ref([])
+const commentContent = ref<any>({})
 
 const addPost = (title: any, content: any, category: any) => {
   postsDB.value
@@ -468,6 +469,34 @@ const loadAttachments = (post: Post, attachmentName: string) => {
     .catch(function (error: any) {
       console.error('Erreur pendant le chargement des médias : ', error)
     })
+}
+//FACTORY DONNÉ PAR IA
+const generateRandomPosts = async (count: number) => {
+  if (!postsDB.value || !commentsDB.value) return
+  for (let i = 0; i < count; i++) {
+    const post = {
+      post_name: Math.random().toString(36).substring(2, 10),
+      post_content: Math.random().toString(36).substring(2, 30),
+      post_likes: Math.round(Math.random() * 10),
+      attributes: {
+        post_category: ['videogames', 'reading', 'cooking'][Math.floor(Math.random() * 3)],
+        creation_date: new Date(),
+      },
+    }
+    const postResponse = await postsDB.value.post(post)
+    const postId = postResponse.id
+    const commentCount = Math.floor(Math.random() * 2) + 1
+    for (let j = 0; j < commentCount; j++) {
+      await commentsDB.value.post({
+        post_id: postId,
+        comment_content: Math.random().toString(36).substring(2, 25),
+        comment_likes: Math.round(Math.random() * 5),
+      })
+    }
+  }
+
+  console.log(`${count} posts avec commentaires générés`)
+  fetchData()
 }
 </script>
 
